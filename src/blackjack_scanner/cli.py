@@ -208,12 +208,15 @@ def _play_round(state: CLIState, players: list[Player]) -> None:
             action_card: Card | None = None
             if action in (Action.HIT, Action.DOUBLE):
                 action_card = _scan_card(state, f"  scan card for {action.value}: ")
+            # Capture the hand index before apply_action, because finishing the
+            # current hand advances active_hand_index to the next split hand.
+            acted_hand_index = player.active_hand_index
             round_.apply_action(player.name, action, card=action_card)
             state.emit(
                 events.HAND_ACTION,
                 {
                     "player": player.name,
-                    "hand_index": player.active_hand_index,
+                    "hand_index": acted_hand_index,
                     "action": action.value,
                     "card": action_card.short if action_card else None,
                     "total_after": hand.total(),

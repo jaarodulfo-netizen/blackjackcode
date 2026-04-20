@@ -104,6 +104,46 @@ def test_full_round_player_busts(tmp_path: Path) -> None:
     assert payload["outcome"] == "dealer_win"
 
 
+def test_split_hand_action_events_report_correct_hand_index(tmp_path: Path) -> None:
+    """After splitting 8s, each hand.action event must carry the hand_index of
+    the hand the action was applied to — not the next hand that becomes active
+    when apply_action advances the cursor."""
+    script = "\n".join([
+        "1",
+        "A",
+        "8S",         # A card 1
+        "TH",         # dealer upcard
+        "8D",         # A card 2 -> pair of 8s
+        "9C",         # dealer hole -> 19
+        "split",      # split the pair
+        "5C",         # replacement card for split hand 1 -> 8 + 5 = 13
+        "stand",      # stand on hand 1 (13)
+        "5D",         # replacement card for split hand 2 -> 8 + 5 = 13
+        "stand",      # stand on hand 2 (13)
+        "n",
+        "",
+    ])
+    _output, events = _run(tmp_path, script)
+    actions = [e for e in events if e["type"] == evt_mod.HAND_ACTION]
+    # Expect: split on hand 0, stand on hand 0, stand on hand 1.
+    assert len(actions) == 3
+    split_payload = actions[0]["payload"]
+    stand_a_payload = actions[1]["payload"]
+    stand_b_payload = actions[2]["payload"]
+    assert isinstance(split_payload, dict)
+    assert isinstance(stand_a_payload, dict)
+    assert isinstance(stand_b_payload, dict)
+    assert split_payload["action"] == "split"
+    assert split_payload["hand_index"] == 0
+    assert stand_a_payload["action"] == "stand"
+    assert stand_a_payload["hand_index"] == 0, (
+        "stand on first split hand must report hand_index=0, not the "
+        "next active hand's index"
+    )
+    assert stand_b_payload["action"] == "stand"
+    assert stand_b_payload["hand_index"] == 1
+
+
 def test_recommendation_emitted(tmp_path: Path) -> None:
     """Strategy recommendation is logged as an event."""
     script = "\n".join([
