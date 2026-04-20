@@ -149,7 +149,7 @@ _NUMERIC_SUITS: dict[int, Suit] = {
 
 
 class NumericBarcodeParser(BarcodeParser):
-    """Parser for numeric barcodes like ``0131`` (Ace of Spades, deck 1)."""
+    """Parser for numeric barcodes like ``0111`` (Ace of Spades, deck 1)."""
 
     name = "numeric"
 

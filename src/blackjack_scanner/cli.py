@@ -166,7 +166,9 @@ def _play_round(state: CLIState, players: list[Player]) -> None:
     while round_.phase is GamePhase.DEALING:
         target = round_.next_deal_target
         assert target is not None
-        who = "dealer" if target[0] == "dealer" else target[0]
+        # target[1] is None for the dealer — distinguish on the index field,
+        # not the name, in case a player is named "dealer".
+        who = "dealer" if target[1] is None else target[0]
         card = _scan_card(state, f"Scan card for {who}: ")
         round_.deal_next(card)
         state.emit(

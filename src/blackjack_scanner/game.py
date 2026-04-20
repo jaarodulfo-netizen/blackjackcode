@@ -166,7 +166,10 @@ class Round:
         if self.phase is not GamePhase.DEALING:
             raise RuntimeError(f"deal_next called in phase {self.phase.value}")
         target = self._deal_order[self._deal_index]
-        if target[0] == "dealer":
+        # target[1] is None for the dealer and an int for a player hand; we
+        # must route on the index field (not the name) because a player could
+        # legitimately be named "dealer".
+        if target[1] is None:
             self.dealer.add(card)
         else:
             player = self._player(target[0])

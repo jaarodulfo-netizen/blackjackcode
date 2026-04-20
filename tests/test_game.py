@@ -263,3 +263,24 @@ class TestSettlement:
         outcomes = r.settle()
         assert outcomes[("A", 0)] is Outcome.SURRENDER
         assert r.players[0].chips == -5
+
+
+class TestDealerNameCollision:
+    """A player named 'dealer' must not have their cards routed to the
+    dealer's hand. deal_next must distinguish dealer vs player targets by the
+    tuple's index field (None for dealer), not the name field."""
+
+    def test_player_named_dealer_gets_own_cards(self) -> None:
+        r = Round(players=[Player("dealer")])
+        r.start_dealing()
+        # Deal order is: player, dealer_up, player, dealer_hole.
+        r.deal_next(c(Rank.TEN, Suit.SPADES))      # -> player "dealer"
+        r.deal_next(c(Rank.FIVE, Suit.HEARTS))     # -> actual dealer
+        r.deal_next(c(Rank.NINE, Suit.DIAMONDS))   # -> player "dealer"
+        r.deal_next(c(Rank.SEVEN, Suit.CLUBS))     # -> actual dealer
+
+        player_hand = r.players[0].hands[0]
+        assert len(player_hand.cards) == 2
+        assert player_hand.total() == 19
+        assert len(r.dealer.cards) == 2
+        assert r.dealer.total() == 12
