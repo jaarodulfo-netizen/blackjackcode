@@ -58,3 +58,9 @@ python_version = "3.10"
 strict = true
 packages = ["blackjack_scanner"]
 mypy_path = "src"
+
+# The Streamlit UI is an optional extra and has no published type stubs.
+# Treat its imports as untyped so mypy can run without the [ui] extra installed.
+[[tool.mypy.overrides]]
+module = ["streamlit", "streamlit.*"]
+ignore_missing_imports = true
