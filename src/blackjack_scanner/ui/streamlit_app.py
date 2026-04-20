@@ -236,6 +236,10 @@ def _pick_player_action(s: dict[str, Any], player: Player, action: Action) -> No
     if action is Action.SPLIT:
         # Split does not consume a card; engine creates two hands with one card each.
         # After split, the UI will prompt for a card for each new hand on entry.
+        # Drop any stale pending action (e.g. user clicked HIT/DOUBLE first,
+        # then changed their mind and clicked SPLIT) so later scans aren't
+        # misrouted through _apply_player_action.
+        s.pop("pending_action_card", None)
         round_.apply_action(player.name, action, card=None)
         # apply_action replaces the original hand in player.hands with two new
         # single-card hands; the pre-split `hand` variable is now orphaned, so
@@ -776,9 +780,13 @@ def _render_scan_bar(s: dict[str, Any]) -> None:
         if round_.dealer_should_hit(cfg.dealer_hits_soft_17):
             prompt = "Scan card for **dealer**"
         else:
-            # Dealer stands; settle now.
+            # Dealer's opening total already ends the round (S17 stands on 17+,
+            # H17 stands on hard 18+). Settle now and rerun so the next render
+            # pass picks up s["results"] and draws the outcome badges — we're
+            # currently inside the render pass, so the panels above us already
+            # read results==None.
             _run_dealer_and_settle(s)
-            return
+            st.rerun()
 
     if prompt is None:
         return
