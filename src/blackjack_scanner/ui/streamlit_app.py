@@ -237,6 +237,10 @@ def _pick_player_action(s: dict[str, Any], player: Player, action: Action) -> No
         # Split does not consume a card; engine creates two hands with one card each.
         # After split, the UI will prompt for a card for each new hand on entry.
         round_.apply_action(player.name, action, card=None)
+        # apply_action replaces the original hand in player.hands with two new
+        # single-card hands; the pre-split `hand` variable is now orphaned, so
+        # read the fresh active hand for the event payload.
+        new_active = player.active_hand
         _emit(
             s,
             events.HAND_ACTION,
@@ -245,8 +249,8 @@ def _pick_player_action(s: dict[str, Any], player: Player, action: Action) -> No
                 "hand_index": player.active_hand_index,
                 "action": action.value,
                 "card": None,
-                "total_after": hand.total(),
-                "state_after": hand.state.value,
+                "total_after": new_active.total(),
+                "state_after": new_active.state.value,
             },
         )
         _toast(s, "info", f"{player.name}: split — scan card for hand 1")
@@ -459,6 +463,7 @@ def _reset_game(s: dict[str, Any]) -> None:
     s["result_meta"] = {}
     s["pending_action_card"] = None
     s["pending_split_deal"] = None
+    s.pop("last_recommendation_key", None)
 
 
 # --------------------------------------------------------------------------- #
@@ -675,16 +680,27 @@ def _render_action_buttons(s: dict[str, Any], player: Player) -> None:
     suggestion: Action | None = None
     if dealer_up is not None:
         suggestion = recommend(hand, dealer_up)
-        _emit(
-            s,
-            events.RECOMMENDATION,
-            {
-                "player": player.name,
-                "hand": [c.short for c in hand.cards],
-                "dealer_up": dealer_up.short,
-                "suggested": suggestion.value,
-            },
+        # Streamlit re-runs the full script on every interaction, so guard the
+        # event emit against re-firing when nothing about the decision changed.
+        rec_key = (
+            player.name,
+            player.active_hand_index,
+            tuple(c.short for c in hand.cards),
+            dealer_up.short,
+            suggestion.value,
         )
+        if s.get("last_recommendation_key") != rec_key:
+            s["last_recommendation_key"] = rec_key
+            _emit(
+                s,
+                events.RECOMMENDATION,
+                {
+                    "player": player.name,
+                    "hand": [c.short for c in hand.cards],
+                    "dealer_up": dealer_up.short,
+                    "suggested": suggestion.value,
+                },
+            )
         st.caption(f"Suggested: **{suggestion.value.upper()}**")
 
     cols = st.columns(5)
