@@ -262,6 +262,10 @@ def _pick_player_action(s: dict[str, Any], player: Player, action: Action) -> No
         return
 
     # Stand / Surrender: apply immediately, no card required.
+    # Drop any stale pending action (e.g. user clicked HIT/DOUBLE first,
+    # then changed their mind) so a subsequent scan can't crash the engine
+    # by re-applying HIT/DOUBLE to an already-finished hand.
+    s.pop("pending_action_card", None)
     acted_index = player.active_hand_index
     round_.apply_action(player.name, action, card=None)
     _emit(
