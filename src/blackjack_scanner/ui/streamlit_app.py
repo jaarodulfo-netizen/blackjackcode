@@ -35,7 +35,6 @@ from blackjack_scanner.game import (
     Action,
     GamePhase,
     Hand,
-    HandState,
     Outcome,
     Player,
     Round,
@@ -313,25 +312,34 @@ def _handle_pending_split_card(s: dict[str, Any], raw: str) -> None:
 
     pending = s["pending_split_deal"]
     player = next(p for p in round_.players if p.name == pending["player"])
-    hand = player.active_hand
+    # Feed the replacement card to the first split hand still holding a single
+    # card, not necessarily the currently-active one. After splitting a pair
+    # the engine leaves both new hands with one card; when the first hand gets
+    # replaced and played out, the active cursor advances to the second hand
+    # which also still needs a card.
+    target_idx: int | None = next(
+        (i for i, h in enumerate(player.hands) if len(h.cards) < 2 and not h.is_finished()),
+        None,
+    )
+    if target_idx is None:
+        _toast(s, "warn", "No split hand is waiting for a card.")
+        s.pop("pending_split_deal", None)
+        return
+    hand = player.hands[target_idx]
     hand.add(card)
     _emit(
         s,
         events.HAND_DEALT,
-        {
-            "to": player.name,
-            "hand_index": player.active_hand_index,
-            "card": card.short,
-        },
+        {"to": player.name, "hand_index": target_idx, "card": card.short},
     )
-    if hand.is_finished():
+    if hand.is_finished() and target_idx == player.active_hand_index:
         player.advance_to_next_active_hand()
         if all(p.all_finished() for p in round_.players):
             round_.phase = GamePhase.DEALER_PLAY
 
-    # If we still have split hands pending a replacement card, keep the
-    # pending-split state; otherwise clear it.
-    if len(player.active_hand.cards) >= 2 or player.active_hand.is_finished():
+    # Keep the pending-split prompt up until every split hand has its second
+    # card (or is otherwise finished).
+    if all(len(h.cards) >= 2 or h.is_finished() for h in player.hands):
         s.pop("pending_split_deal", None)
 
     _maybe_start_dealer_play(s)
@@ -703,11 +711,10 @@ def _render_action_buttons(s: dict[str, Any], player: Player) -> None:
             _pick_player_action(s, player, Action.DOUBLE)
             st.rerun()
     with cols[3]:
-        can_split = hand.can_split() or (
-            hand.is_ten_pair()
-            and hand.state is HandState.ACTIVE
-            and not hand.is_split
-        )
+        # The engine only allows splitting identical-rank pairs
+        # (``hand.is_pair()``), so trust ``can_split`` directly — enabling the
+        # button on ten-value non-pairs like K+Q would crash the engine.
+        can_split = hand.can_split()
         if st.button(
             _label(Action.SPLIT),
             key=f"split_{player.name}",
