@@ -9,4 +9,9 @@ can also be launched via the ``blackjack-scanner-ui`` console script
 (installed by the ``[ui]`` extra).
 """
 
-from blackjack_scanner.ui import streamlit_app  # noqa: F401  (side-effects render the app)
+from blackjack_scanner.ui.streamlit_app import run
+
+# Streamlit re-executes this file on every interaction, so the render must
+# happen via an explicit call — a bare import would hit the module cache on
+# reruns and render nothing.
+run()

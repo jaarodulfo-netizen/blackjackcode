@@ -900,4 +900,5 @@ def run() -> None:
     _ = Path
 
 
-run()
+if __name__ == "__main__":
+    run()
