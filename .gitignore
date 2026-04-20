@@ -52,3 +52,10 @@ Thumbs.db
 .env.*
 !.env.example
 *.log
+
+# Event log produced by the default StubEventSink.
+events.jsonl
+
+# Local test scratch files.
+test-plan.md
+test-report.md

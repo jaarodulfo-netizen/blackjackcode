@@ -22,6 +22,7 @@ dependencies = []
 
 [project.optional-dependencies]
 aws = ["boto3>=1.34"]
+ui = ["streamlit>=1.30"]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.1",
@@ -31,6 +32,7 @@ dev = [
 
 [project.scripts]
 blackjack-scanner = "blackjack_scanner.cli:main"
+blackjack-scanner-ui = "blackjack_scanner.ui.launch:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -56,3 +58,9 @@ python_version = "3.10"
 strict = true
 packages = ["blackjack_scanner"]
 mypy_path = "src"
+
+# The Streamlit UI is an optional extra and has no published type stubs.
+# Treat its imports as untyped so mypy can run without the [ui] extra installed.
+[[tool.mypy.overrides]]
+module = ["streamlit", "streamlit.*"]
+ignore_missing_imports = true
